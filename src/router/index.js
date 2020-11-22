@@ -5,6 +5,15 @@ Vue.use(VueRouter)
 
 // 路由表
 const routes = [
+  {
+    path: '/',
+    redirect: '/login'
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/login')
+  }
 ]
 
 const router = new VueRouter({
