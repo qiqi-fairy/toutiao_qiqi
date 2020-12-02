@@ -145,6 +145,7 @@ export default {
         const { results } = data.data
         // this.list.unshift(...results)
         this.list = results // 只显示加载了的10条数据
+        this.$refs.myList.check() // 错漏的
 
         // 3、关闭下拉刷新的 loading 状态
         this.isreFreshLoading = false

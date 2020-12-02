@@ -7,7 +7,7 @@
       title="黑马头条"
       @click-left="$router.back()"
     ></van-nav-bar>
-    <!-- /导航栏 -->
+    <!-- /导航栏-->
 
     <div class="main-wrap">
       <!-- 加载中 -->
@@ -35,20 +35,54 @@
           <div slot="label" class="publish-date">
             {{ article.pubdate | relativeTime }}
           </div>
+          <!--  模板中的 $event 是事件参数 
+                当我们传递给子组件的数据既要使用还要修改时，
+                    传递： props
+                      :is-followed.sync="article.is_followed"
+                    修改： 自定义事件 
+                      @update-is_followed="article.is_followed=$event"
+
+                简写方式： 在组件中使用 v-model 方法
+                  会传递一个名字叫value的prop，
+                  value= "article.is_followed"，
+                  同时它会自动监听有一个事件，叫input事件
+                  @input="article.is_followed=$event",它会让这个文章等于$event -->
+          <!-- 简写：value= "article.is_followed"
+                        @input="article.is_followed=$event"
+                    如果需要修改 v-model 的规则名称，可以通过子组件的 model属性来配置修改
+                  
+                  一个组件上只能使用一次 v-model，
+                  如果有多个数据需要实现类似与 v-model 的效果，怎么办？
+                  可以使用属性的 .sync 修饰符 -->
+          <follow-user
+            class="follow-btn"
+            v-model="article.is_followed"
+            :user-id="article.aut_id"
+          ></follow-user>
+          <!--  -->
+
+          <!-- 关注与已关注 -->
+          <!-- <van-button
+            v-if="article.is_followed"
+            class="follow-btn"
+            round
+            size="small"
+            @click="onFollow"
+            :loading='followLoading'
+            >已关注</van-button
+          >
           <van-button
+            v-else
             class="follow-btn"
             type="info"
             color="#3296fa"
             round
             size="small"
             icon="plus"
+            @click="onFollow"
+            :loading='followLoading'
             >关注</van-button
-          >
-          <!-- <van-button
-            class="follow-btn"
-            round
-            size="small"
-          >已关注</van-button> -->
+          > -->
         </van-cell>
         <!-- /用户信息 -->
 
@@ -59,6 +93,55 @@
           ref="article-content"
         ></div>
         <van-divider>正文结束</van-divider>
+
+        <!-- 文章评论列表 -->
+        <comment-list
+          :source="article.art_id"
+          :list="commentList"
+          @onload-success="totalCommentCount = $event.total_count"
+        />
+
+        <!-- 底部区域 -->
+        <div class="article-bottom">
+          <van-button
+            class="comment-btn"
+            type="default"
+            round
+            size="small"
+            @click="isPostShow = true"
+            >写评论</van-button
+          >
+          <van-icon name="comment-o" :info="totalCommentCount" color="#777" />
+
+          <!-- <van-icon color="#777" name="star-o" /> -->
+          <!-- 收藏按钮 -->
+          <collect-article
+            class="btn-item"
+            v-model="article.is_collected"
+            :article-id="article.art_id"
+          />
+
+          <!-- 点赞部分 -->
+          <like-article
+            class="btn-item"
+            v-model="article.attitude"
+            :article-id="article.art_id"
+          />
+          <!-- <van-icon color="#777" name="good-job-o" /> -->
+          <van-icon name="share" color="#777777"></van-icon>
+        </div>
+
+        <!-- 发布评论弹出层 -->
+        <van-popup v-model="isPostShow" position="bottom">
+          <!-- 评论组件 -->
+          <comment-post
+            :target="article.art_id"
+            @post-success="onPostSuccess"
+          />
+        </van-popup>
+        <!-- /发布评论弹出层 -->
+
+        <!-- /底部区域 -->
       </div>
       <!-- /加载完成-文章详情 -->
 
@@ -77,28 +160,27 @@
       </div>
       <!-- /加载失败：其它未知错误（例如网络原因或服务端异常） -->
     </div>
-
-    <!-- 底部区域 -->
-    <div class="article-bottom">
-      <van-button class="comment-btn" type="default" round size="small"
-        >写评论</van-button
-      >
-      <van-icon name="comment-o" info="123" color="#777" />
-      <van-icon color="#777" name="star-o" />
-      <van-icon color="#777" name="good-job-o" />
-      <van-icon name="share" color="#777777"></van-icon>
-    </div>
-    <!-- /底部区域 -->
   </div>
 </template>
 
 <script>
 import { getArticleById } from '@/api/article'
 import { ImagePreview } from 'vant'
+import FollowUser from '@/components/follow-user'
+import CollectArticle from '@/components/collect-article'
+import LikeArticle from '@/components/like-article'
+import CommentList from './components/comment-list'
+import CommentPost from './components/comment-post'
 
 export default {
   name: 'ArticleIndex',
-  components: {},
+  components: {
+    FollowUser,
+    CollectArticle,
+    LikeArticle,
+    CommentList,
+    CommentPost
+  },
   props: {
     articleId: {
       type: [Number, String, Object],
@@ -109,7 +191,11 @@ export default {
     return {
       article: {}, // 文章详情
       loading: true, // 加载中的 loading 状态
-      errStatus: 0 // 失败的状态码
+      errStatus: 0, // 失败的状态码
+      followLoading: false,
+      totalCommentCount: 0, // 在父组件中初始化了一个数据，用来表示标记评论总数
+      isPostShow: false, // 控制弹出层的显示与隐藏
+      commentList: [] // 评论列表
     }
   },
   computed: {},
@@ -151,7 +237,7 @@ export default {
       // 无论成功还是失败，都需要关闭 loading
       this.loading = false
     },
-    //
+    // 图片预览
     previewImage() {
       // 得到所有的 img 节点
       const articleContent = this.$refs['article-content']
@@ -172,6 +258,14 @@ export default {
         }
       })
       console.log(imgUrls)
+    },
+    
+    // 发布评论
+    onPostSuccess(data) {
+      // 关闭弹出层
+      this.isPostShow = false
+      // 将发布内容显示到列表顶部
+      this.commentList.unshift(data.new_obj)
     }
   }
 }
@@ -283,7 +377,7 @@ export default {
       line-height: 46px;
       color: #a7a7a7;
     }
-    .van-icon {
+    /deep/.van-icon {
       font-size: 40px;
       .van-info {
         font-size: 16px;
