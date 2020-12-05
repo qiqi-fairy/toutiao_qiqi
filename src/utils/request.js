@@ -59,6 +59,42 @@ request.interceptors.request.use(
     return Promise.reject(error)
   }
 )
+
 // 响应拦截器
+request.interceptors.response.use(
+  function(res) {
+    return res
+  },
+  async function(err) {
+    console.log(err.config)
+    if (err.response.status === 401) {
+      // 使用refresh_token 来刷新 token
+      const refreshToken = store.state.user.refresh_token
+      console.log(refreshToken)
+
+      const result = await axios({
+        method: 'PUT',
+        url: 'http://ttapi.research.itcast.cn/app/v1_0/authorizations',
+        headers: {
+          Authorization: 'Bearer ' + refreshToken
+        }
+      })
+      console.log(result)
+      const newToken = result.data.data.token
+      store.commit('setUser', {
+        token: newToken,
+        refresh_token: refreshToken
+      })
+      // 将之前出错的请求，在请求一次
+      // request({
+      //   method: ?
+      //   url: ?
+      //   data: ?
+      // })
+      return request(err.config)
+    }
+    return Promise.reject(err)
+  }
+)
 
 export default request
