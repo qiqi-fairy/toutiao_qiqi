@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <input type="file" hidden />
+    <button>上传按钮</button>
+    <img />
+    <script>
+      var ipt = document.querySelector('input')
+      var btn = document.querySelector('button')
+      var pic = document.querySelector('img')
+      btn.addEventListener('click', function() {
+        // console.log(11);
+        // 点击按钮，用来触发 input的点击事件 模拟input的点击事件
+        ipt.click()
+      })
+      // 再监听input的change事件
+      ipt.onchange = function() {
+        const data = window.URL.createObjectURL(ipt.files[0])
+        pic.src = data
+      }
+    </script>
+  </body>
+</html>
